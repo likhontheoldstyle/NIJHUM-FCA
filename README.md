@@ -1,17 +1,17 @@
-# rika-fca
+# nijhum-fca
 
 Minimal Facebook Chat API for Messenger bots. ESM only.
 
 ## Install
 
 ```bash
-npm install rika-fca
+npm install nijhum-fca
 ```
 
 ## Usage
 
 ```js
-import login from "rika-fca";
+import login from "nijhum-fca";
 import { readFileSync } from "fs";
 
 const appState = JSON.parse(readFileSync("./appstate.json", "utf8"));
