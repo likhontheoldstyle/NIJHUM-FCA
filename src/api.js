@@ -94,5 +94,239 @@ export function buildApi(ctx) {
             if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
             return p;
         },
+
+        unsendMessage(messageID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/messaging/unsend_message/", headers, {
+                    message_id: messageID,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        getUserInfo(userIDs, callback) {
+            const p = (async () => {
+                const ids = Array.isArray(userIDs) ? userIDs : [userIDs];
+                const form = {};
+                ids.forEach((id, i) => (form[`ids[${i}]`] = id));
+                const res = await post("https://www.facebook.com/chat/user_info/", headers, form);
+                parseRes(res);
+                return res.payload?.profiles || {};
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        getUserID(name, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, {
+                    q: `node(${name}){id,name}`,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        getThreadList(limit, timestamp, tags, callback) {
+            const p = (async () => {
+                const form = {
+                    limit: limit || 20,
+                    tags: tags || ["INBOX"],
+                };
+                if (timestamp) form.timestamp = timestamp;
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, form);
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        getThreadInfo(threadID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, {
+                    q: `node(${threadID}){name,participants{id,name}}`,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        addUserToGroup(userIDs, threadID, callback) {
+            const p = (async () => {
+                const ids = Array.isArray(userIDs) ? userIDs : [userIDs];
+                const form = { thread_fbid: threadID };
+                ids.forEach((id, i) => (form[`added_ids[${i}]`] = id));
+                const res = await post("https://www.facebook.com/messaging/send/", headers, form);
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        removeUserFromGroup(userID, threadID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/chat/remove_participants", headers, {
+                    tid: threadID,
+                    ids: userID,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        setTitle(title, threadID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/messaging/set_thread_name/", headers, {
+                    thread_name: title,
+                    thread_id: threadID,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        deleteThread(threadIDs, callback) {
+            const p = (async () => {
+                const ids = Array.isArray(threadIDs) ? threadIDs : [threadIDs];
+                const form = {};
+                ids.forEach((id, i) => (form[`ids[${i}]`] = id));
+                const res = await post("https://www.facebook.com/messaging/delete_thread/", headers, form);
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        editMessage(messageID, newBody, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/messaging/edit_message/", headers, {
+                    message_id: messageID,
+                    message_text: newBody,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        changeThreadEmoji(emoji, threadID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/messaging/save_thread_emoji/", headers, {
+                    emoji,
+                    thread_or_other_fbid: threadID,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        changeThreadColor(color, threadID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/messaging/save_thread_color/", headers, {
+                    color,
+                    thread_or_other_fbid: threadID,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        changeGroupImage(imageStream, threadID, callback) {
+            const p = (async () => {
+                const chunks = [];
+                for await (const c of imageStream) chunks.push(c);
+                const buf = Buffer.concat(chunks);
+                const res = await postFormData(
+                    "https://www.facebook.com/messaging/set_thread_image/",
+                    headers,
+                    { thread_id: threadID },
+                    { image: buf }
+                );
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        changeBio(bio, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/api/graphql/", headers, {
+                    q: `bio:${bio}`,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        changeAdminStatus(threadID, userID, isAdmin, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/messaging/save_admins/", headers, {
+                    thread_fbid: threadID,
+                    admin_ids: isAdmin ? userID : "",
+                    remove_admin_ids: isAdmin ? "" : userID,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        sendTypingIndicator(threadID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/messaging/typ/", headers, {
+                    thread: threadID,
+                    typ: 1,
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        getFriendsList(callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, {
+                    q: "friends",
+                });
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        getAppState() {
+            return ctx.appstate;
+        },
+
+        httpPost(url, form, callback) {
+            const p = post(url, headers, form).then(parseRes);
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
     };
 }
