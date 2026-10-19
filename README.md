@@ -30,6 +30,18 @@ login({ appState }, {
 });
 ```
 
+## Anti-Detection Features
+
+- **BypassAutomationBehavior** (default on) — human-like request timing, jittered MQTT keepalive, browser-like headers. Reduces ban risk. Disable with `bypassAutomationBehavior: false` in login options.
+- **AutoRefreshFbDtsg** (default on) — automatically refreshes the fb_dtsg token hourly to keep the session alive. Disable with `autoRefreshFbDtsg: false`.
+
+```js
+login({ appState }, {
+    bypassAutomationBehavior: true,  // default true
+    autoRefreshFbDtsg: true,         // default true
+}, callback);
+```
+
 ## API
 
 ### Core
