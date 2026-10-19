@@ -62,16 +62,46 @@ export function buildApi(ctx) {
                         attachmentIds.push(meta);
                     }
                 }
+                const otid = Date.now().toString() + Math.floor(Math.random() * 1000000).toString();
                 const form = withDtsg({
-                    thread_fbid: threadID,
-                    message_text: body,
                     client: "mercury",
-                });
-                if (replyToMessageID) form.reply_to_message_id = replyToMessageID;
+                    action_type: "ma-type:user-generated-message",
+                    author: "fbid:" + ctx.userID,
+                    timestamp: Date.now(),
+                    timestamp_absolute: "Today",
+                    timestamp_time_passed: "0",
+                    is_unread: false,
+                    is_cleared: false,
+                    is_forward: false,
+                    is_filtered_content: false,
+                    is_spoof_warning: false,
+                    source: "source:chat:web",
+                    "source_tags[0]": "source:chat",
+                    body,
+                    html_body: false,
+                    ui_push_phase: "V3",
+                    status: "0",
+                    offline_threading_id: otid,
+                    message_id: otid,
+                    threading_id: otid,
+                    "ephemeral_ttl_mode:": "0",
+                    manual_retry_cnt: "0",
+                    has_attachment: attachmentIds.length > 0,
+                    message_text: body,
+                }, ctx.userID);
+                const tid = String(threadID);
+                if (tid.length === 15 || tid === String(ctx.userID)) {
+                    form["specific_to_list[0]"] = "fbid:" + tid;
+                    form["specific_to_list[1]"] = "fbid:" + ctx.userID;
+                    form["other_user_fbid"] = tid;
+                } else {
+                    form["thread_fbid"] = tid;
+                }
+                if (replyToMessageID) form.replied_to_message_id = replyToMessageID;
                 attachmentIds.forEach((a, i) => {
                     form[`attachment[${i}][id]`] = a.id || a;
                 });
-                const res = await post("https://www.facebook.com/messaging/send/", headers, form);
+                const res = await post("https://www.facebook.com/messaging/send/", headers, withDtsg(form, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -85,7 +115,7 @@ export function buildApi(ctx) {
                     message_id: messageID,
                     reaction: emoji,
                 };
-                const res = await post("https://www.facebook.com/messaging/set_message_reaction/", headers, form);
+                const res = await post("https://www.facebook.com/messaging/set_message_reaction/", headers, withDtsg(form, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -114,9 +144,9 @@ export function buildApi(ctx) {
 
         unsendMessage(messageID, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/messaging/unsend_message/", headers, {
+                const res = await post("https://www.facebook.com/messaging/unsend_message/", headers, withDtsg({
                     message_id: messageID,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -129,7 +159,7 @@ export function buildApi(ctx) {
                 const ids = Array.isArray(userIDs) ? userIDs : [userIDs];
                 const form = {};
                 ids.forEach((id, i) => (form[`ids[${i}]`] = id));
-                const res = await post("https://www.facebook.com/chat/user_info/", headers, form);
+                const res = await post("https://www.facebook.com/chat/user_info/", headers, withDtsg(form, ctx.userID));
                 parseRes(res);
                 return res.payload?.profiles || {};
             })();
@@ -139,9 +169,9 @@ export function buildApi(ctx) {
 
         getUserID(name, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, {
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, withDtsg({
                     q: `node(${name}){id,name}`,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -156,7 +186,7 @@ export function buildApi(ctx) {
                     tags: tags || ["INBOX"],
                 };
                 if (timestamp) form.timestamp = timestamp;
-                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, form);
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, withDtsg(form, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -166,9 +196,9 @@ export function buildApi(ctx) {
 
         getThreadInfo(threadID, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, {
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, withDtsg({
                     q: `node(${threadID}){name,participants{id,name}}`,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -181,7 +211,7 @@ export function buildApi(ctx) {
                 const ids = Array.isArray(userIDs) ? userIDs : [userIDs];
                 const form = { thread_fbid: threadID };
                 ids.forEach((id, i) => (form[`added_ids[${i}]`] = id));
-                const res = await post("https://www.facebook.com/messaging/send/", headers, form);
+                const res = await post("https://www.facebook.com/messaging/send/", headers, withDtsg(form, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -191,10 +221,10 @@ export function buildApi(ctx) {
 
         removeUserFromGroup(userID, threadID, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/chat/remove_participants", headers, {
+                const res = await post("https://www.facebook.com/chat/remove_participants", headers, withDtsg({
                     tid: threadID,
                     ids: userID,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -204,10 +234,10 @@ export function buildApi(ctx) {
 
         setTitle(title, threadID, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/messaging/set_thread_name/", headers, {
+                const res = await post("https://www.facebook.com/messaging/set_thread_name/", headers, withDtsg({
                     thread_name: title,
                     thread_id: threadID,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -220,7 +250,7 @@ export function buildApi(ctx) {
                 const ids = Array.isArray(threadIDs) ? threadIDs : [threadIDs];
                 const form = {};
                 ids.forEach((id, i) => (form[`ids[${i}]`] = id));
-                const res = await post("https://www.facebook.com/messaging/delete_thread/", headers, form);
+                const res = await post("https://www.facebook.com/messaging/delete_thread/", headers, withDtsg(form, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -230,10 +260,10 @@ export function buildApi(ctx) {
 
         editMessage(messageID, newBody, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/messaging/edit_message/", headers, {
+                const res = await post("https://www.facebook.com/messaging/edit_message/", headers, withDtsg({
                     message_id: messageID,
                     message_text: newBody,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -243,10 +273,10 @@ export function buildApi(ctx) {
 
         changeThreadEmoji(emoji, threadID, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/messaging/save_thread_emoji/", headers, {
+                const res = await post("https://www.facebook.com/messaging/save_thread_emoji/", headers, withDtsg({
                     emoji,
                     thread_or_other_fbid: threadID,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -256,10 +286,10 @@ export function buildApi(ctx) {
 
         changeThreadColor(color, threadID, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/messaging/save_thread_color/", headers, {
+                const res = await post("https://www.facebook.com/messaging/save_thread_color/", headers, withDtsg({
                     color,
                     thread_or_other_fbid: threadID,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -287,9 +317,9 @@ export function buildApi(ctx) {
 
         changeBio(bio, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/api/graphql/", headers, {
+                const res = await post("https://www.facebook.com/api/graphql/", headers, withDtsg({
                     q: `bio:${bio}`,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -299,11 +329,11 @@ export function buildApi(ctx) {
 
         changeAdminStatus(threadID, userID, isAdmin, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/messaging/save_admins/", headers, {
+                const res = await post("https://www.facebook.com/messaging/save_admins/", headers, withDtsg({
                     thread_fbid: threadID,
                     admin_ids: isAdmin ? userID : "",
                     remove_admin_ids: isAdmin ? "" : userID,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -313,10 +343,10 @@ export function buildApi(ctx) {
 
         sendTypingIndicator(threadID, callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/messaging/typ/", headers, {
+                const res = await post("https://www.facebook.com/messaging/typ/", headers, withDtsg({
                     thread: threadID,
                     typ: 1,
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -326,9 +356,9 @@ export function buildApi(ctx) {
 
         getFriendsList(callback) {
             const p = (async () => {
-                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, {
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, withDtsg({
                     q: "friends",
-                });
+                }, ctx.userID));
                 parseRes(res);
                 return res;
             })();
@@ -341,9 +371,94 @@ export function buildApi(ctx) {
         },
 
         httpPost(url, form, callback) {
-            const p = post(url, headers, form).then(parseRes);
+            const p = post(url, headers, withDtsg(form, ctx.userID)).then(parseRes);
             if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
             return p;
+        },
+
+        listen(callback) {
+            return this.listenMqtt(callback);
+        },
+
+        setOptions(options) {
+            Object.assign(ctx.options, options || {});
+        },
+
+        markAsRead(threadID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/ajax/mercury/change_read_status.php", headers, withDtsg({
+                    thread_ids: threadID,
+                    action: "mark_read",
+                }, ctx.userID));
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        markAsDelivered(threadID, messageID, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/ajax/mercury/delivery_receipts.php", headers, withDtsg({
+                    thread_id: threadID,
+                    message_id: messageID,
+                }, ctx.userID));
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        markAsReadAll(callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/ajax/mercury/mark_all_read.php", headers, withDtsg({}, ctx.userID));
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        getThreadHistory(threadID, amount, timestamp, callback) {
+            const p = (async () => {
+                const res = await post("https://www.facebook.com/api/graphqlbatch/", headers, withDtsg({
+                    q: `thread(${threadID},${amount || 20}){messages}`,
+                }, ctx.userID));
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        changeAvatar(imageStream, callback) {
+            const p = (async () => {
+                const chunks = [];
+                for await (const c of imageStream) chunks.push(c);
+                const buf = Buffer.concat(chunks);
+                const res = await postFormData(
+                    "https://www.facebook.com/profile/picture/upload/",
+                    headers,
+                    {},
+                    { avatar: buf }
+                );
+                parseRes(res);
+                return res;
+            })();
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        async getFreshDtsg(callback) {
+            const { fetchFbDtsg } = await import("./dtsg.js");
+            const p = fetchFbDtsg(headers);
+            if (callback) p.then((r) => callback(null, r)).catch((e) => callback(e));
+            return p;
+        },
+
+        async refreshFb(callback) {
+            return this.getFreshDtsg(callback);
         },
     };
 }
