@@ -23,6 +23,7 @@ export default function login(loginData, options, callback) {
             headers,
             options,
             mqttClient: null,
+            appstate,
         };
         return buildApi(ctx);
     })();
