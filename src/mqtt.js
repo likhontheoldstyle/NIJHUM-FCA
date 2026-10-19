@@ -1,5 +1,6 @@
 import mqtt from "mqtt";
 import websocket from "websocket-stream";
+import { jitteredKeepalive } from "./bypass.js";
 
 const TOPICS = [
     "/t_ms",
@@ -58,7 +59,7 @@ export function listenMqtt(ctx, onEvent) {
             protocolVersion: 3,
             username: JSON.stringify(username),
             clean: true,
-            keepalive: 60,
+            keepalive: jitteredKeepalive(60),
             reschedulePings: true,
             reconnectPeriod: 3000,
         }
