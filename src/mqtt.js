@@ -112,13 +112,15 @@ function parseDelta(d, ctx) {
     const cls = d.class || d.deltaClass;
     if (cls === "NewMessage" || d.body) {
         const md = d.messageMetadata || {};
+        const threadID = md.threadKey?.threadFbId || md.threadKey?.otherUserFbId || "";
         return {
             type: d.replyToMessage ? "message_reply" : "message",
-            threadID: md.threadKey?.threadFbId || md.threadKey?.otherUserFbId || "",
+            threadID,
             messageID: md.messageId || "",
             senderID: md.actorFbId || "",
             body: d.body || "",
             timestamp: md.timestamp || Date.now(),
+            isGroup: !!md.threadKey?.threadFbId,
         };
     }
     if (cls === "ThreadName" || cls === "ParticipantsAddedToGroupThread") {
