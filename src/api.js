@@ -1,4 +1,6 @@
 import { post, postFormData } from "./http.js";
+import { withDtsg } from "./dtsg.js";
+import { humanDelay } from "./bypass.js";
 
 function parseRes(res) {
     if (res.error && res.error !== 0) throw res;
@@ -24,6 +26,7 @@ export function buildApi(ctx) {
 
         sendMessage(msg, threadID, callback, replyToMessageID) {
             const p = (async () => {
+                await humanDelay();
                 let body = "";
                 let attachmentIds = [];
                 if (typeof msg === "string") body = msg;
@@ -45,11 +48,11 @@ export function buildApi(ctx) {
                         attachmentIds.push(meta);
                     }
                 }
-                const form = {
+                const form = withDtsg({
                     thread_fbid: threadID,
                     message_text: body,
                     client: "mercury",
-                };
+                });
                 if (replyToMessageID) form.reply_to_message_id = replyToMessageID;
                 attachmentIds.forEach((a, i) => {
                     form[`attachment[${i}][id]`] = a.id || a;
