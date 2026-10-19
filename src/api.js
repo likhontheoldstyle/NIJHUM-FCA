@@ -16,12 +16,26 @@ export function buildApi(ctx) {
         },
 
         listenMqtt(callback) {
-            import("./mqtt.js").then(({ listenMqtt }) => {
-                listenMqtt(ctx, (err, event) => {
+            let client = null;
+            import("./mqtt.js").then(({ listenMqtt, stopListen }) => {
+                client = listenMqtt(ctx, (err, event) => {
                     if (err) return callback(err, null);
                     callback(null, event);
                 });
             });
+            const handle = {
+                stopListening(cb) {
+                    import("./mqtt.js").then(({ stopListen }) => {
+                        stopListen(ctx);
+                        if (cb) cb();
+                    });
+                },
+                async stopListeningAsync() {
+                    const { stopListen } = await import("./mqtt.js");
+                    stopListen(ctx);
+                },
+            };
+            return handle;
         },
 
         sendMessage(msg, threadID, callback, replyToMessageID) {
