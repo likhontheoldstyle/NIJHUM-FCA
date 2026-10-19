@@ -68,7 +68,7 @@ export function listenMqtt(ctx, onEvent) {
     ctx.mqttClient = client;
 
     client.on("error", (err) => {
-        onEvent({ type: "error", error: err.message || err }, null);
+        onEvent(null, { type: "error", error: err.message || String(err) });
     });
 
     client.on("connect", () => {
