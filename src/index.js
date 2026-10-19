@@ -1,8 +1,10 @@
 import { appstateToCookieString, getUserIdFromAppstate, buildHeaders } from "./session.js";
-import { get } from "./http.js";
+import { get, setCurrentUserID } from "./http.js";
 import { buildApi } from "./api.js";
-import { startAutoRefresh, stopAutoRefresh } from "./dtsg.js";
+import { startAutoRefresh, stopAutoRefresh, setFetchFn } from "./dtsg.js";
 import { setBypassEnabled, humanHeaders } from "./bypass.js";
+
+setFetchFn(get);
 
 export default function login(loginData, options, callback) {
     if (typeof options === "function") {
@@ -29,6 +31,9 @@ export default function login(loginData, options, callback) {
             mqttClient: null,
             appstate,
         };
+        setCurrentUserID(String(userID));
+        const { fetchFbDtsg } = await import("./dtsg.js");
+        await fetchFbDtsg(headers);
         if (options.autoRefreshFbDtsg !== false) startAutoRefresh(headers);
         return buildApi(ctx);
     })();
