@@ -38,7 +38,7 @@ export function post(url, headers, form) {
 
 export function postFormData(url, headers, fields, files) {
     return new Promise((resolve, reject) => {
-        const boundary = "----RikaFca" + Date.now().toString(16);
+        const boundary = "----NijhumFca" + Date.now().toString(16);
         const parts = [];
         for (const [k, v] of Object.entries(fields || {})) {
             parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
