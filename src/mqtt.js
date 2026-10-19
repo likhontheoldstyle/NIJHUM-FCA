@@ -95,15 +95,32 @@ export function listenMqtt(ctx, onEvent) {
     client.on("message", (topic, message) => {
         try {
             const data = JSON.parse(message.toString());
-            handleMqttMessage(data, ctx, onEvent);
+            handleMqttMessage(topic, data, ctx, onEvent);
         } catch {}
     });
 
     return client;
 }
 
-function handleMqttMessage(data, ctx, onEvent) {
-    if (data.type === "messaging" || data.type === "orca_message_notifications") {
+function handleMqttMessage(topic, data, ctx, onEvent) {
+    if (topic === "/t_ms") {
+        if (data.firstDeltaSeqId && data.syncToken) {
+            ctx.lastSeqId = data.firstDeltaSeqId;
+            ctx.syncToken = data.syncToken;
+        }
+        if (data.lastIssuedSeqId) ctx.lastSeqId = parseInt(data.lastIssuedSeqId);
+        for (const delta of data.deltas || []) {
+            const ev = parseDelta({ delta }, ctx);
+            if (ev) onEvent(null, ev);
+        }
+    } else if (topic === "/thread_typing" || topic === "/orca_typing_notifications") {
+        onEvent(null, {
+            type: "typ",
+            isTyping: !!data.state,
+            from: String(data.sender_fbid || ""),
+            threadID: String(data.thread || data.sender_fbid || ""),
+        });
+    } else if (data.type === "messaging" || data.type === "orca_message_notifications") {
         const events = data.event === "delta" ? [{ delta: data.delta }] : (data.deltas || []).map(d => ({ delta: d }));
         for (const v of events) {
             const ev = parseDelta(v, ctx);
