@@ -1,5 +1,12 @@
 import https from "https";
 import { URLSearchParams } from "url";
+import { withDtsg } from "./dtsg.js";
+
+let currentUserID = null;
+
+export function setCurrentUserID(id) {
+    currentUserID = id;
+}
 
 export function post(url, headers, form) {
     return new Promise((resolve, reject) => {
