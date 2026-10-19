@@ -3,7 +3,16 @@ import websocket from "websocket-stream";
 import { jitteredKeepalive } from "./bypass.js";
 
 const TOPICS = [
+    "/legacy_web",
+    "/webrtc",
+    "/rtc_multi",
+    "/onevc",
+    "/br_sr",
+    "/sr_res",
     "/t_ms",
+    "/thread_typing",
+    "/orca_typing_notifications",
+    "/notify_disconnect",
     "/messaging_events",
     "/orca_message_notifications",
     "/mercury",
@@ -78,6 +87,7 @@ export function listenMqtt(ctx, onEvent) {
             max_deltas_able_to_process: 1000,
             delta_batch_size: 500,
             encoding: "JSON",
+            entity_fbid: ctx.userID,
         };
         client.publish("/messenger_sync_create_queue", JSON.stringify(queue), { qos: 1, retain: false });
     });
@@ -94,43 +104,57 @@ export function listenMqtt(ctx, onEvent) {
 
 function handleMqttMessage(data, ctx, onEvent) {
     if (data.type === "messaging" || data.type === "orca_message_notifications") {
-        const events = data.event === "delta" ? [data.delta] : data.deltas || [];
-        for (const d of events) {
-            const ev = parseDelta(d, ctx);
+        const events = data.event === "delta" ? [{ delta: data.delta }] : (data.deltas || []).map(d => ({ delta: d }));
+        for (const v of events) {
+            const ev = parseDelta(v, ctx);
             if (ev) onEvent(null, ev);
         }
     } else if (data.ms) {
         for (const ms of data.ms) {
-            const ev = parseDelta(ms.delta, ctx);
+            const ev = parseDelta(ms, ctx);
             if (ev) onEvent(null, ev);
         }
+    } else if (data.delta) {
+        const ev = parseDelta(data, ctx);
+        if (ev) onEvent(null, ev);
     }
+}
+
+function formatID(id) {
+    if (id != undefined && id != null) return String(id).replace(/(fb)?id[:.]/, "");
+    return id;
 }
 
 function parseDelta(d, ctx) {
     if (!d) return null;
-    const cls = d.class || d.deltaClass;
-    if (cls === "NewMessage" || d.body) {
-        const md = d.messageMetadata || {};
-        const threadID = md.threadKey?.threadFbId || md.threadKey?.otherUserFbId || "";
+    const delta = d.delta || d;
+    const cls = delta.class || d.class;
+    if (cls === "NewMessage") {
+        const md = delta.messageMetadata || {};
+        const body = delta.body || "";
+        const threadID = formatID((md.threadKey?.threadFbId || md.threadKey?.otherUserFbId || "").toString());
         return {
-            type: d.replyToMessage ? "message_reply" : "message",
+            type: "message",
+            senderID: formatID((md.actorFbId || "").toString()),
             threadID,
             messageID: md.messageId || "",
-            senderID: md.actorFbId || "",
-            body: d.body || "",
+            args: body === "" ? [] : body.trim().split(/\s+/),
+            body,
+            attachments: delta.attachments || [],
+            mentions: {},
             timestamp: md.timestamp || Date.now(),
             isGroup: !!md.threadKey?.threadFbId,
+            participantIDs: delta.participants || [],
         };
     }
     if (cls === "ThreadName" || cls === "ParticipantsAddedToGroupThread") {
         return {
             type: "event",
             logMessageType: "log:subscribe",
-            threadID: d.threadFbId || d.threadKey?.threadFbId || "",
+            threadID: formatID((delta.threadFbId || delta.threadKey?.threadFbId || "").toString()),
             logMessageData: {
-                addedParticipants: (d.addedParticipants || []).map((p) => ({
-                    userFbId: p.userFbId || p,
+                addedParticipants: (delta.addedParticipants || []).map((p) => ({
+                    userFbId: formatID((p.userFbId || p).toString()),
                 })),
             },
         };
